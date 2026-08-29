@@ -145,7 +145,7 @@
     display:block; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.06em;
     color:var(--text-faint); margin-bottom:7px; font-weight:600;
   }
-  .field input[type="number"], .field input[type="text"]{
+  .field input[type="number"], .field input[type="text"], .field input[type="password"]{
     width:100%; background:var(--bg-soft); border:1px solid var(--card-border);
     color:var(--text); padding:11px 13px; border-radius:var(--radius-sm);
     font-size:0.95rem;
@@ -209,7 +209,7 @@
     transform:rotate(-90deg); transform-origin:50% 50%; transition:stroke-dashoffset 1s linear, stroke .3s ease;
     filter:drop-shadow(0 0 10px var(--amber-glow));}
   .ring-fg.break-color{stroke:var(--sage); filter:drop-shadow(0 0 10px rgba(127,190,160,0.35));}
-
+  
   /* Paused indicator animation */
   .ring-wrap.paused .ring-fg{
     animation: pausePulse 1.8s infinite ease-in-out;
@@ -343,27 +343,26 @@
   .round-complete .rc-title{font-family:var(--font-display); font-size:1.35rem; font-weight:600; margin-bottom:6px;}
   .round-complete .rc-sub{color:var(--text-muted); font-size:0.9rem; margin-bottom:22px;}
 
-  /* ---------- Tasks tab (simple checklist) ---------- */
+  /* ---------- Tasks tab ---------- */
   .task-item{
-    display:flex; align-items:center; gap:12px;
     border:1px solid var(--card-border-soft); border-radius:var(--radius-md);
-    padding:14px 16px; margin-bottom:10px; background:var(--bg-soft);
+    padding:16px 18px; margin-bottom:12px; background:var(--bg-soft);
   }
-  .task-item input[type="checkbox"]{
-    width:19px; height:19px; accent-color:var(--amber); flex-shrink:0; cursor:pointer;
-  }
-  .task-item .task-title{
-    flex:1; font-size:0.95rem; font-weight:600; word-break:break-word;
-  }
-  .task-item.done{opacity:0.75;}
-  .task-item.done .task-title{ text-decoration:line-through; color:var(--text-faint); font-weight:500; }
-  .icon-btn{background:none; border:none; color:var(--text-faint); cursor:pointer; font-size:0.95rem; padding:4px; flex-shrink:0;}
+  .task-item .ti-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px;}
+  .task-item .ti-title{font-weight:700; font-size:0.98rem;}
+  .task-item .ti-meta{color:var(--text-faint); font-size:0.76rem; margin-top:3px;}
+  .subtask-list{margin-top:12px; display:flex; flex-direction:column; gap:8px;}
+  .subtask{display:flex; align-items:center; gap:10px; font-size:0.88rem;}
+  .subtask input[type="checkbox"]{accent-color:var(--amber); width:16px; height:16px;}
+  .subtask.done label{text-decoration:line-through; color:var(--text-faint);}
+  .subtask .st-min{margin-left:auto; color:var(--text-faint); font-family:var(--font-mono); font-size:0.78rem;}
+  .task-progress{height:6px; border-radius:999px; background:var(--bg); overflow:hidden; margin-top:12px; border:1px solid var(--card-border-soft);}
+  .task-progress-fill{height:100%; background:var(--sage);}
+  .ti-actions{display:flex; gap:8px;}
+  .icon-btn{background:none; border:none; color:var(--text-faint); cursor:pointer; font-size:0.95rem; padding:4px;}
   .icon-btn:hover{color:var(--boss);}
 
-  .task-add-row{display:flex; gap:10px;}
-  .task-add-row .field{flex:1; margin-bottom:0;}
-
-  .task-summary{color:var(--text-faint); font-size:0.82rem; margin-top:2px;}
+  .ai-status{font-size:0.82rem; color:var(--text-faint); margin-top:8px; min-height:1.1em;}
 
   /* ---------- Stats tab ---------- */
   .stat-grid{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:6px;}
@@ -553,22 +552,31 @@
     <!-- ================= TASKS TAB ================= -->
     <section id="tab-tasks" class="tab-panel">
       <div class="card">
-        <h2>Add a task</h2>
-        <p class="sub">Jot down what you need to get done, then tick it off once it's finished.</p>
-        <div class="task-add-row">
+        <h2>Break down an assignment</h2>
+        <p class="sub">Describe the task. AI breakdown uses your saved Anthropic API key in Settings.</p>
+
+        <div class="field">
+          <label for="task-input">Task or assignment</label>
+          <input type="text" id="task-input" placeholder="e.g. Write a 1500-word essay on climate policy">
+        </div>
+
+        <div class="row">
           <div class="field">
-            <label for="task-input">Task description</label>
-            <input type="text" id="task-input" placeholder="e.g. Finish chapter 5 reading">
-          </div>
-          <div style="display:flex; align-items:flex-end;">
-            <button class="btn btn-primary" id="btn-add-task">+ Add</button>
+            <label for="task-parts">Number of subtasks</label>
+            <input type="number" id="task-parts" min="2" max="10" value="4">
           </div>
         </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-primary" id="btn-ai-breakdown">✨ Break down with AI</button>
+          <button class="btn btn-ghost" id="btn-manual-add">Add without AI</button>
+        </div>
+        <div class="ai-status" id="ai-status"></div>
       </div>
 
       <div class="card">
         <h2>Your tasks</h2>
-        <p class="sub" id="task-summary-line">Nothing to do yet.</p>
+        <p class="sub">Check off subtasks as you go. Send the time estimate straight to the timer.</p>
         <div id="task-list"></div>
         <div class="empty-hint" id="task-empty">No tasks yet — add one above.</div>
       </div>
@@ -589,6 +597,18 @@
         <h2>Session history</h2>
         <div class="log-list" id="log-list"></div>
         <div class="empty-hint" id="log-empty">No sessions logged yet.</div>
+      </div>
+
+      <div class="card">
+        <h2>AI Integration (Claude)</h2>
+        <p class="sub">Add your Anthropic API key to enable AI task breakdowns directly in your browser.</p>
+        <div class="field">
+          <label for="input-api-key">Anthropic API Key</label>
+          <div style="display:flex; gap:8px;">
+            <input type="password" id="input-api-key" placeholder="sk-ant-api03-..." style="flex:1;">
+            <button class="btn btn-ghost btn-sm" id="btn-save-key">Save Key</button>
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -623,7 +643,7 @@
 <script>
 (function(){
 
-  /* ---------------- Storage helpers (localStorage) ---------------- */
+  /* ---------------- Storage helpers (Standard localStorage) ---------------- */
   function storeGet(key, fallback){
     try{
       const r = localStorage.getItem(key);
@@ -636,9 +656,9 @@
   }
 
   /* ---------------- Global state ---------------- */
-  let tasks = []; // {id, title, done}
+  let tasks = [];
   let sessionLog = [];
-  let settings = { restEnabled:true, restInterval:30, sound:true };
+  let settings = { restEnabled:true, restInterval:30, sound:true, apiKey:'' };
 
   /* ---------------- Theme toggle ---------------- */
   const themeBtn = document.getElementById('theme-toggle');
@@ -717,12 +737,12 @@
         const gain = ctx.createGain();
         osc.type = 'sine';
         osc.frequency.value = freq;
-
+        
         const startTime = ctx.currentTime + (idx * 0.12);
         gain.gain.setValueAtTime(0.0001, startTime);
         gain.gain.exponentialRampToValueAtTime(0.08, startTime + 0.04);
         gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 1.2);
-
+        
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(startTime);
@@ -741,6 +761,7 @@
       const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const output = noiseBuffer.getChannelData(0);
       let lastOut = 0.0;
+      // Pink/Brown noise filter for rain-like sound
       for (let i = 0; i < bufferSize; i++) {
         const white = Math.random() * 2 - 1;
         output[i] = (lastOut + (0.02 * white)) / 1.02;
@@ -893,6 +914,7 @@
     document.getElementById('ring-round').textContent = 'Round ' + timer.round;
     document.title = fmt(timer.remaining) + ' · ' + (timer.phase === 'study' ? 'Studying' : 'Break') + ' — Study Focus';
 
+    // Game mode
     document.getElementById('arena-round').textContent = timer.round;
     document.getElementById('arena-time').textContent = fmt(timer.remaining);
     const arena = document.getElementById('arena');
@@ -1005,71 +1027,153 @@
     }
   });
 
-  /* ---------------- Tasks (simple checklist) ---------------- */
+  /* ---------------- Tasks / AI breakdown ---------------- */
+  function renderTasks(){
+    const list = document.getElementById('task-list');
+    list.innerHTML = '';
+    document.getElementById('task-empty').style.display = tasks.length ? 'none' : 'block';
+
+    tasks.forEach((task, ti)=>{
+      const done = task.subtasks.filter(s=>s.done).length;
+      const pct = task.subtasks.length ? Math.round(done/task.subtasks.length*100) : 0;
+      const totalMin = task.subtasks.reduce((a,s)=>a+(s.minutes||0),0);
+
+      const div = document.createElement('div');
+      div.className = 'task-item';
+      div.innerHTML = `
+        <div class="ti-head">
+          <div>
+            <div class="ti-title">${escapeHtml(task.title)}</div>
+            <div class="ti-meta">${task.subtasks.length} subtasks · ${totalMin} min estimated</div>
+          </div>
+          <div class="ti-actions">
+            <button class="icon-btn" data-act="send" data-i="${ti}" title="Send total time to timer">⏱</button>
+            <button class="icon-btn" data-act="del" data-i="${ti}" title="Delete task">🗑</button>
+          </div>
+        </div>
+        <div class="subtask-list"></div>
+        <div class="task-progress"><div class="task-progress-fill" style="width:${pct}%"></div></div>
+      `;
+      const stWrap = div.querySelector('.subtask-list');
+      task.subtasks.forEach((s, si)=>{
+        const row = document.createElement('div');
+        row.className = 'subtask' + (s.done ? ' done' : '');
+        row.innerHTML = `<input type="checkbox" ${s.done?'checked':''} data-ti="${ti}" data-si="${si}">
+          <label>${escapeHtml(s.title)}</label>
+          <span class="st-min">${s.minutes ? s.minutes+'m' : ''}</span>`;
+        stWrap.appendChild(row);
+      });
+      list.appendChild(div);
+    });
+  }
+
   function escapeHtml(str){
     const d = document.createElement('div');
     d.textContent = str;
     return d.innerHTML;
   }
 
-  function renderTasks(){
-    const list = document.getElementById('task-list');
-    list.innerHTML = '';
-    document.getElementById('task-empty').style.display = tasks.length ? 'none' : 'block';
-
-    tasks.forEach((task)=>{
-      const row = document.createElement('div');
-      row.className = 'task-item' + (task.done ? ' done' : '');
-      row.innerHTML = `
-        <input type="checkbox" ${task.done ? 'checked' : ''} data-id="${task.id}">
-        <div class="task-title">${escapeHtml(task.title)}</div>
-        <button class="icon-btn" data-id="${task.id}" title="Delete task">🗑</button>
-      `;
-      list.appendChild(row);
-    });
-
-    const doneCount = tasks.filter(t=>t.done).length;
-    const summary = document.getElementById('task-summary-line');
-    summary.textContent = tasks.length
-      ? `${doneCount} of ${tasks.length} done`
-      : 'Nothing to do yet.';
-  }
-
   document.getElementById('task-list').addEventListener('change', (e)=>{
     if (e.target.matches('input[type="checkbox"]')){
-      const id = e.target.dataset.id;
-      const t = tasks.find(x=>String(x.id)===id);
-      if (t){
-        t.done = e.target.checked;
-        storeSet('tasks', tasks);
-        renderTasks();
-      }
+      const ti = +e.target.dataset.ti, si = +e.target.dataset.si;
+      tasks[ti].subtasks[si].done = e.target.checked;
+      storeSet('tasks', tasks);
+      renderTasks();
     }
   });
 
   document.getElementById('task-list').addEventListener('click', (e)=>{
     const btn = e.target.closest('.icon-btn');
     if (!btn) return;
-    const id = btn.dataset.id;
-    tasks = tasks.filter(x=>String(x.id)!==id);
+    const i = +btn.dataset.i;
+    if (btn.dataset.act === 'del'){
+      tasks.splice(i,1);
+      storeSet('tasks', tasks);
+      renderTasks();
+    } else if (btn.dataset.act === 'send'){
+      const total = tasks[i].subtasks.reduce((a,s)=>a+(s.minutes||0),0);
+      if (total > 0){
+        document.getElementById('input-study').value = total;
+        activateTab('timer');
+        toast('Sent to timer', total + ' minutes loaded into study time.');
+      }
+    }
+  });
+
+  document.getElementById('btn-manual-add').addEventListener('click', ()=>{
+    const title = document.getElementById('task-input').value.trim();
+    if (!title){ toast('Add a task first', 'Type a task description above.'); return; }
+    tasks.unshift({ title, subtasks: [{title:'Get started', minutes:25, done:false}] });
     storeSet('tasks', tasks);
+    document.getElementById('task-input').value = '';
     renderTasks();
   });
 
-  function addTask(){
-    const input = document.getElementById('task-input');
-    const title = input.value.trim();
-    if (!title) return;
-    tasks.unshift({ id: Date.now(), title, done:false });
-    storeSet('tasks', tasks);
-    input.value = '';
-    input.focus();
-    renderTasks();
-  }
+  document.getElementById('btn-ai-breakdown').addEventListener('click', async ()=>{
+    const title = document.getElementById('task-input').value.trim();
+    const parts = Math.min(10, Math.max(2, parseInt(document.getElementById('task-parts').value) || 4));
+    const statusEl = document.getElementById('ai-status');
+    if (!title){ toast('Add a task first', 'Type a task description above.'); return; }
 
-  document.getElementById('btn-add-task').addEventListener('click', addTask);
-  document.getElementById('task-input').addEventListener('keydown', (e)=>{
-    if (e.key === 'Enter'){ e.preventDefault(); addTask(); }
+    const apiKey = settings.apiKey || '';
+    if (!apiKey){
+      toast('API Key needed', 'Please enter your Anthropic API Key in Stats & Settings.');
+      activateTab('stats');
+      document.getElementById('input-api-key').focus();
+      return;
+    }
+
+    statusEl.textContent = 'Thinking through a plan…';
+    const btn = document.getElementById('btn-ai-breakdown');
+    btn.disabled = true;
+
+    try{
+      const prompt = 'You help students break study tasks into clear steps. ' +
+        'Split the following task into exactly ' + parts + ' subtasks a student can work through in order. ' +
+        'For each, estimate focused minutes needed (realistic, 10-90 range). ' +
+        'Respond with ONLY a raw JSON array, no markdown fences, no commentary, in this exact shape: ' +
+        '[{"title":"...", "minutes": 30}, ...]. Task: """' + title + '"""';
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      if (!response.ok){
+        const errData = await response.json().catch(()=>({}));
+        throw new Error(errData.error?.message || 'API request failed');
+      }
+
+      const data = await response.json();
+      const text = (data.content || []).map(b=>b.text || '').join('\n').trim();
+      const clean = text.replace(/```json|```/g, '').trim();
+      const subtasks = JSON.parse(clean).map(s=>({title:String(s.title), minutes: Number(s.minutes)||25, done:false}));
+
+      tasks.unshift({ title, subtasks });
+      storeSet('tasks', tasks);
+      document.getElementById('task-input').value = '';
+      statusEl.textContent = 'Done — ' + subtasks.length + ' subtasks added.';
+      renderTasks();
+    }catch(err){
+      console.error(err);
+      statusEl.textContent = `Error: ${err.message || 'Could not reach AI'}. Adding manually.`;
+      tasks.unshift({ title, subtasks: [{title:'Get started', minutes:25, done:false}] });
+      storeSet('tasks', tasks);
+      renderTasks();
+    }finally{
+      btn.disabled = false;
+      setTimeout(()=>{ statusEl.textContent = ''; }, 5000);
+    }
   });
 
   /* ---------------- Stats & Settings ---------------- */
@@ -1095,6 +1199,13 @@
       logList.appendChild(d);
     });
   }
+
+  document.getElementById('btn-save-key').addEventListener('click', ()=>{
+    const val = document.getElementById('input-api-key').value.trim();
+    settings.apiKey = val;
+    storeSet('settings', settings);
+    toast('Key saved', 'Your API Key has been saved locally.');
+  });
 
   document.getElementById('chk-rest-enabled').addEventListener('change', (e)=>{
     settings.restEnabled = e.target.checked;
@@ -1122,6 +1233,7 @@
     document.getElementById('chk-rest-enabled').checked = settings.restEnabled;
     document.getElementById('input-rest-interval').value = settings.restInterval;
     document.getElementById('chk-sound').checked = settings.sound;
+    if(settings.apiKey) document.getElementById('input-api-key').value = settings.apiKey;
 
     const lastTab = storeGet('active-tab', 'timer');
     activateTab(lastTab);
